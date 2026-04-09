@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Snake Game</title>
+    <style>
+        :root {
+            --bg-0: #07070f;
+            --bg-1: #0f1020;
+            --neon-green: #39ff14;
+            --neon-red: #ff2d55;
+            --neon-cyan: #00f0ff;
+            --text: #d9ecff;
+            --panel: rgba(10, 14, 24, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.12), transparent 30%),
+                radial-gradient(circle at 80% 75%, rgba(57, 255, 20, 0.1), transparent 35%),
+                linear-gradient(160deg, var(--bg-0), var(--bg-1));
+            color: var(--text);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            padding: 1rem;
+        }
+
+        .game-shell {
+            width: min(94vw, 560px);
+            background: var(--panel);
+            border: 1px solid rgba(0, 240, 255, 0.45);
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow:
+                0 0 18px rgba(0, 240, 255, 0.25),
+                0 0 35px rgba(57, 255, 20, 0.15),
+                inset 0 0 15px rgba(0, 0, 0, 0.55);
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+
+        .score-wrap {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .score-pill {
+            padding: 0.35rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            background: rgba(8, 14, 22, 0.8);
+        }
+
+        .score-pill strong {
+            color: var(--neon-green);
+            margin-left: 0.25rem;
+        }
+
+        .board-wrap {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: block;
+            background:
+                linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                #090d17;
+            background-size: calc(100% / 20) calc(100% / 20);
+            border: 2px solid rgba(0, 240, 255, 0.45);
+            box-shadow:
+                0 0 20px rgba(0, 240, 255, 0.5),
+                inset 0 0 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            background: rgba(6, 8, 16, 0.78);
+            transition: opacity 0.3s ease;
+            padding: 1rem;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay-box h2 {
+            font-size: clamp(1.4rem, 5vw, 2rem);
+            color: var(--neon-red);
+            text-shadow: 0 0 10px rgba(255, 45, 85, 0.7);
+            margin-bottom: 0.6rem;
+        }
+
+        .overlay-box p {
+            color: #b5cbdf;
+            margin-bottom: 0.85rem;
+        }
+
+        .controls {
+            margin-top: 0.9rem;
+            display: flex;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 1px solid rgba(0, 240, 255, 0.55);
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(57, 255, 20, 0.16));
+            color: #ecf9ff;
+            font-weight: 700;
+            padding: 0.6rem 0.95rem;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+        }
+
+        .dpad {
+            margin-top: 1rem;
+            display: none;
+            justify-content: center;
+        }
+
+        .dpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 58px);
+            grid-template-rows: repeat(3, 58px);
+            gap: 0.4rem;
+        }
+
+        .dpad-btn {
+            border-radius: 11px;
+            font-size: 1.2rem;
+            user-select: none;
+            touch-action: manipulation;
+            min-height: 58px;
+        }
+
+        .up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        .shake {
+            animation: shake 0.45s linear;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+
+        @media (max-width: 768px) {
+            .dpad {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="game-shell" aria-label="Cyberpunk Snake game container">
+        <div class="top-bar">
+            <h1 class="title">CYBERPUNK SNAKE</h1>
+            <div class="score-wrap">
+                <div class="score-pill">Score <strong id="score">0</strong></div>
+                <div class="score-pill">High <strong id="highScore">0</strong></div>
+            </div>
+        </div>
+
+        <div class="board-wrap">
+            <canvas id="gameCanvas" width="600" height="600" aria-label="Snake game board"></canvas>
+
+            <div class="overlay" id="startOverlay">
+                <div class="overlay-box">
+                    <h2>Ready to Play?</h2>
+                    <p>Use arrow keys (or D-pad on mobile) to guide the snake.</p>
+                    <button id="startBtn" type="button">Start Game</button>
+                </div>
+            </div>
+
+            <div class="overlay hidden" id="gameOverOverlay">
+                <div class="overlay-box">
+                    <h2>Game Over</h2>
+                    <p>Your run ended. Hit restart and beat your high score!</p>
+                    <button id="restartBtn" type="button">Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtnBottom" type="button">Start Game</button>
+            <button id="restartBtnBottom" type="button">Restart</button>
+        </div>
+
+        <div class="dpad" aria-label="On-screen controls">
+            <div class="dpad-grid">
+                <button class="dpad-btn up" data-dir="up" type="button">▲</button>
+                <button class="dpad-btn left" data-dir="left" type="button">◀</button>
+                <button class="dpad-btn right" data-dir="right" type="button">▶</button>
+                <button class="dpad-btn down" data-dir="down" type="button">▼</button>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Core game settings
+        const GRID_SIZE = 20;
+        const BASE_SPEED = 140; // ms per step at score 0
+        const MIN_SPEED = 65;   // top speed cap
+        const SPEED_STEP = 4;   // speed increase per score point
+        const STORAGE_KEY = "cyberpunkSnakeHighScore";
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreEl = document.getElementById("score");
+        const highScoreEl = document.getElementById("highScore");
+        const startOverlay = document.getElementById("startOverlay");
+        const gameOverOverlay = document.getElementById("gameOverOverlay");
+        const shell = document.querySelector(".game-shell");
+
+        const startBtn = document.getElementById("startBtn");
+        const startBtnBottom = document.getElementById("startBtnBottom");
+        const restartBtn = document.getElementById("restartBtn");
+        const restartBtnBottom = document.getElementById("restartBtnBottom");
+        const dpadButtons = document.querySelectorAll(".dpad-btn");
+
+        const cellSize = canvas.width / GRID_SIZE;
+
+        let snake = [];
+        let direction = { x: 1, y: 0 };
+        let queuedDirection = { x: 1, y: 0 };
+        let food = { x: 10, y: 10 };
+        let score = 0;
+        let highScore = Number(localStorage.getItem(STORAGE_KEY)) || 0;
+        let gameRunning = false;
+        let gameLoopId = null;
+
+        highScoreEl.textContent = String(highScore);
+
+        function resetState() {
+            snake = [
+                { x: 8, y: 10 },
+                { x: 7, y: 10 },
+                { x: 6, y: 10 }
+            ];
+            direction = { x: 1, y: 0 };
+            queuedDirection = { x: 1, y: 0 };
+            score = 0;
+            scoreEl.textContent = "0";
+            placeFood();
+            draw();
+        }
+
+        // Places food on any free cell not occupied by snake
+        function placeFood() {
+            let newFood;
+            do {
+                newFood = {
+                    x: Math.floor(Math.random() * GRID_SIZE),
+                    y: Math.floor(Math.random() * GRID_SIZE)
+                };
+            } while (snake.some((part) => part.x === newFood.x && part.y === newFood.y));
+            food = newFood;
+        }
+
+        function drawGridGlow() {
+            ctx.save();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "rgba(0, 240, 255, 0.4)";
+            ctx.strokeStyle = "rgba(0, 240, 255, 0.15)";
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+
+        function drawFood() {
+            const x = food.x * cellSize;
+            const y = food.y * cellSize;
+            ctx.save();
+            ctx.fillStyle = "#ff2d55";
+            ctx.shadowColor = "rgba(255, 45, 85, 0.95)";
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize * 0.33, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawSnake() {
+            snake.forEach((part, idx) => {
+                const x = part.x * cellSize;
+                const y = part.y * cellSize;
+                const isHead = idx === 0;
+                ctx.save();
+                ctx.fillStyle = isHead ? "#78ff57" : "#39ff14";
+                ctx.shadowColor = "rgba(57, 255, 20, 0.95)";
+                ctx.shadowBlur = isHead ? 20 : 12;
+                ctx.fillRect(x + 1.2, y + 1.2, cellSize - 2.4, cellSize - 2.4);
+                ctx.restore();
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGridGlow();
+            drawFood();
+            drawSnake();
+        }
+
+        function currentSpeed() {
+            return Math.max(MIN_SPEED, BASE_SPEED - score * SPEED_STEP);
+        }
+
+        function update() {
+            direction = queuedDirection;
+            const head = snake[0];
+            const nextHead = { x: head.x + direction.x, y: head.y + direction.y };
+
+            const hitWall =
+                nextHead.x < 0 ||
+                nextHead.y < 0 ||
+                nextHead.x >= GRID_SIZE ||
+                nextHead.y >= GRID_SIZE;
+
+            const hitSelf = snake.some((part) => part.x === nextHead.x && part.y === nextHead.y);
+
+            if (hitWall || hitSelf) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(nextHead);
+
+            if (nextHead.x === food.x && nextHead.y === food.y) {
+                score += 1;
+                scoreEl.textContent = String(score);
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreEl.textContent = String(highScore);
+                    localStorage.setItem(STORAGE_KEY, String(highScore));
+                }
+                placeFood();
+            } else {
+                snake.pop();
+            }
+
+            draw();
+            if (gameRunning) {
+                gameLoopId = setTimeout(update, currentSpeed());
+            }
+        }
+
+        function startGame() {
+            if (gameRunning) return;
+            resetState();
+            gameRunning = true;
+            startOverlay.classList.add("hidden");
+            gameOverOverlay.classList.add("hidden");
+            clearTimeout(gameLoopId);
+            gameLoopId = setTimeout(update, currentSpeed());
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            clearTimeout(gameLoopId);
+            gameOverOverlay.classList.remove("hidden");
+            shell.classList.remove("shake");
+            // Force reflow so animation can re-trigger on repeated game overs
+            void shell.offsetWidth;
+            shell.classList.add("shake");
+        }
+
+        function restartGame() {
+            gameOverOverlay.classList.add("hidden");
+            startOverlay.classList.add("hidden");
+            gameRunning = false;
+            clearTimeout(gameLoopId);
+            startGame();
+        }
+
+        function setDirection(dir) {
+            if (!gameRunning) return;
+
+            // Prevent instant 180 degree turns that would self-collide
+            if (dir === "up" && direction.y !== 1) queuedDirection = { x: 0, y: -1 };
+            if (dir === "down" && direction.y !== -1) queuedDirection = { x: 0, y: 1 };
+            if (dir === "left" && direction.x !== 1) queuedDirection = { x: -1, y: 0 };
+            if (dir === "right" && direction.x !== -1) queuedDirection = { x: 1, y: 0 };
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowUp") setDirection("up");
+            if (event.key === "ArrowDown") setDirection("down");
+            if (event.key === "ArrowLeft") setDirection("left");
+            if (event.key === "ArrowRight") setDirection("right");
+        });
+
+        dpadButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                setDirection(button.dataset.dir);
+            });
+        });
+
+        startBtn.addEventListener("click", startGame);
+        startBtnBottom.addEventListener("click", startGame);
+        restartBtn.addEventListener("click", restartGame);
+        restartBtnBottom.addEventListener("click", restartGame);
+
+        // Initial render
+        resetState();
+    </script>
+</body>
+</html>
