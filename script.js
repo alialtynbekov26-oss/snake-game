@@ -12,7 +12,7 @@ let dy = 0;
 let food = {};
 let score = 0;
 let highscore = localStorage.getItem("skySnakeHS") || 0;
-let gameInterval;
+let gameInterval = null;
 let isPaused = false;
 let speed = 110;
 
@@ -29,7 +29,6 @@ function drawBackground() {
   ctx.fillStyle = "#81d4fa";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Булуттар
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.beginPath(); ctx.ellipse(180, 140, 70, 40, 0, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(250, 110, 55, 35, 0, 0, Math.PI*2); ctx.fill();
@@ -42,15 +41,14 @@ function drawSnake() {
     ctx.fillStyle = i === 0 ? "#2e7d32" : "#66bb6a";
     ctx.fillRect(part.x, part.y, grid, grid);
     ctx.strokeStyle = "#1b5e20";
-    ctx.lineWidth = 2;
     ctx.strokeRect(part.x, part.y, grid, grid);
   });
 }
 
 function drawFood() {
   ctx.fillStyle = "#f50057";
-  ctx.shadowBlur = 15;
-  ctx.shadowColor = "#f50057";
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = "#ff4081";
   ctx.beginPath();
   ctx.arc(food.x + grid/2, food.y + grid/2, grid/2 - 3, 0, Math.PI * 2);
   ctx.fill();
@@ -90,6 +88,7 @@ function gameLoop() {
 
   if (checkCollision()) {
     clearInterval(gameInterval);
+    gameInterval = null;
     finalScoreEl.textContent = score;
     if (score > highscore) {
       highscore = score;
@@ -106,7 +105,7 @@ function gameLoop() {
   drawFood();
 }
 
-// Баскычтар
+// ================== БАШКАРУУ ==================
 document.getElementById("startBtn").onclick = () => {
   if (!gameInterval) {
     randomFood();
@@ -123,11 +122,15 @@ document.getElementById("playAgain").onclick = () => location.reload();
 
 // Клавиатура
 document.addEventListener("keydown", e => {
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.key) > -1) {
+    e.preventDefault();
+  }
   if (e.key === "ArrowUp" && dy !== grid) { dx = 0; dy = -grid; }
   if (e.key === "ArrowDown" && dy !== -grid) { dx = 0; dy = grid; }
   if (e.key === "ArrowLeft" && dx !== grid) { dx = -grid; dy = 0; }
   if (e.key === "ArrowRight" && dx !== -grid) { dx = grid; dy = 0; }
 });
 
+// Биринчи экран
 drawBackground();
 drawSnake();
